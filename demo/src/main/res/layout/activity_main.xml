@@ -23,4 +23,15 @@
         android:layout_height="wrap_content"
         android:text="Result Activity" />
 
+    <Button
+        android:id="@+id/choose_image_bt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Choose Image"/>
+
+    <ImageView
+        android:id="@+id/gallery_iv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
 </LinearLayout>

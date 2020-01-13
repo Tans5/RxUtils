@@ -7,10 +7,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.jakewharton.rxbinding3.view.clicks
-import com.tans.rxutils.loadingDialog
-import com.tans.rxutils.optionDialogMaybe
-import com.tans.rxutils.optionDialogSingle
-import com.tans.rxutils.startActivityForResult
+import com.tans.rxutils.*
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import kotlinx.android.synthetic.main.activity_main.*
@@ -48,6 +45,15 @@ class MainActivity : AppCompatActivity() {
                         if (resultCode == Activity.RESULT_OK) {
                             Toast.makeText(this, data.getStringExtra("test_result"), Toast.LENGTH_SHORT).show()
                         }
+                    }
+            }
+            .subscribe()
+
+        choose_image_bt.clicks()
+            .flatMapMaybe {
+                chooseImageFromGallery(this)
+                    .doOnSuccess {
+                        gallery_iv.setImageURI(it)
                     }
             }
             .subscribe()
