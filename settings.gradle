@@ -1,0 +1,2 @@
+include ':demo', ':rxutils'
+rootProject.name='RxUtils'
