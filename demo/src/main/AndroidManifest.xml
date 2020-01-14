@@ -3,6 +3,7 @@
     package="com.tans.rxutils.demo">
 
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <application
         android:allowBackup="true"
@@ -19,6 +20,14 @@
             </intent-filter>
         </activity>
         <activity android:name=".ResultActivity" />
+        <provider
+            android:authorities="com.tans.rxutils.demo.fileprovider"
+            android:name="androidx.core.content.FileProvider"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
     </application>
 
 </manifest>

@@ -1,37 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    android:layout_width="match_parent"
+<androidx.core.widget.NestedScrollView android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <Button
-        android:id="@+id/loading_bt"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Loading Dialog" />
+        android:orientation="vertical">
 
-    <Button
-        android:id="@+id/option_bt"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Option Dialog" />
+        <Button
+            android:id="@+id/loading_bt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Loading Dialog" />
 
-    <Button
-        android:id="@+id/result_activity_bt"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Result Activity" />
+        <Button
+            android:id="@+id/option_bt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Option Dialog" />
 
-    <Button
-        android:id="@+id/choose_image_bt"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Choose Image"/>
+        <Button
+            android:id="@+id/result_activity_bt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Result Activity" />
 
-    <ImageView
-        android:id="@+id/gallery_iv"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        <Button
+            android:id="@+id/choose_image_bt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Choose Image" />
 
-</LinearLayout>
+        <Button
+            android:id="@+id/capture_photo_bt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Capture Photo" />
+
+        <Button
+            android:id="@+id/capture_share_bt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Capture and share" />
+
+        <Button
+            android:id="@+id/choose_image_save_bt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Choose Image Save"/>
+
+        <ImageView
+            android:id="@+id/gallery_iv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+    </LinearLayout>
+
+</androidx.core.widget.NestedScrollView>

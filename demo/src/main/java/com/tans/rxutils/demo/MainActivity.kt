@@ -2,16 +2,21 @@ package com.tans.rxutils.demo
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.drawable.BitmapDrawable
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Environment
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import com.jakewharton.rxbinding3.view.clicks
 import com.tans.rxutils.*
+import io.reactivex.Maybe
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import kotlinx.android.synthetic.main.activity_main.*
+import java.io.File
 import java.util.concurrent.TimeUnit
+
+val fileProviderAuth = "com.tans.rxutils.demo.fileprovider"
 
 class MainActivity : AppCompatActivity() {
 
@@ -39,11 +44,11 @@ class MainActivity : AppCompatActivity() {
             .subscribe()
 
         result_activity_bt.clicks()
-            .flatMapMaybe {
+            .flatMapSingle {
                 startActivityForResult(this, Intent(this, ResultActivity::class.java))
                     .doOnSuccess { (resultCode, data) ->
                         if (resultCode == Activity.RESULT_OK) {
-                            Toast.makeText(this, data.getStringExtra("test_result"), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, data?.getStringExtra("test_result"), Toast.LENGTH_SHORT).show()
                         }
                     }
             }
@@ -57,5 +62,64 @@ class MainActivity : AppCompatActivity() {
                     }
             }
             .subscribe()
+
+        capture_photo_bt.clicks()
+            .flatMapSingle {
+                val file = createImageFile()
+                captureFromCamera(this, file, fileProviderAuth)
+                    .doOnSuccess { (code, data) ->
+                        if (code == Activity.RESULT_OK) {
+                            gallery_iv.setImageDrawable(BitmapDrawable.createFromPath(file.absolutePath))
+                        } else {
+                            file.delete()
+                        }
+                    }
+            }
+            .subscribe()
+
+        capture_share_bt.clicks()
+            .flatMapSingle {
+                val file = createImageFile()
+                captureFromCamera(this, file, fileProviderAuth)
+                    .flatMapMaybe {(code, _) ->
+                        if (code == Activity.RESULT_OK) {
+                            Maybe.just(file)
+                        } else {
+                            file.delete()
+                            Maybe.empty<File>()
+                        }
+                    }
+                    .flatMapSingle { f ->
+                        shareImageAndText(
+                            context = this,
+                            text = "Hello, World!!",
+                            imageFile = f,
+                            authority = fileProviderAuth)
+                            .doOnSuccess {
+                                println(it)
+                            }
+                    }
+            }
+            .subscribe()
+
+        choose_image_save_bt.clicks()
+            .flatMapSingle {
+                chooseImageFromGallery(this)
+                    .flatMapSingle {uri ->
+                        val file = createImageFile()
+                        saveUriToLocal(uri, file, this)
+                            .switchThread()
+                            .doOnSuccess {
+                                gallery_iv.setImageDrawable(BitmapDrawable.createFromPath(it.path))
+                            }
+                    }
+            }
+            .subscribe()
     }
+
+    fun createImageFile(): File {
+        val parent = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        return File(parent, "${System.currentTimeMillis()}.jpg")
+    }
+
 }
