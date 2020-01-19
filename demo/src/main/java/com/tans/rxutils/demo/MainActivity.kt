@@ -14,6 +14,7 @@ import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
+import java.io.FileInputStream
 import java.util.concurrent.TimeUnit
 
 val fileProviderAuth = "com.tans.rxutils.demo.fileprovider"

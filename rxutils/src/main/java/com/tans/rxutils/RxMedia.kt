@@ -1,16 +1,16 @@
 package com.tans.rxutils
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.fragment.app.FragmentActivity
 import io.reactivex.Completable
 import io.reactivex.Single
-import java.io.BufferedInputStream
-import java.io.File
-import java.io.FileOutputStream
-import java.io.InputStream
+import java.io.*
 
 /**
  *
@@ -49,21 +49,110 @@ fun shareImageAndText(
 
 fun saveUriToLocal(uri: Uri, file: File, context: Context): Single<File> {
     val inputStream = context.contentResolver.openInputStream(uri)
-    return readInputStream(file, inputStream ?: error("Can't create InputStream"))
+    return writeDataToFile(file, inputStream ?: error("Can't create InputStream"))
 }
 
-fun readInputStream(file: File, inputStream: InputStream): Single<File> = Single.fromCallable {
-    val bufferSize = 8 * 1024
-    val fos = FileOutputStream(file).buffered(bufferSize)
-    inputStream.buffered(bufferSize).use { bis: BufferedInputStream ->
-        fos.use { bos ->
-            val bytes = ByteArray(bufferSize)
-            var count = bis.read(bytes, 0, bufferSize)
+fun writeDataToFile(file: File, inputStream: InputStream)
+        : Single<File> = writeDataToOutputStream(inputStream, FileOutputStream(file))
+    .andThen(Single.just(file))
+
+fun writeDataToOutputStream(
+    inputStream: InputStream,
+    outputStream: OutputStream,
+    bufferedSize: Int = 8 * 1024 // 8 KB
+): Completable = Completable.fromAction {
+    val osb = outputStream.buffered(bufferedSize)
+    inputStream.buffered(bufferedSize).use { `is` ->
+        osb.use { os ->
+            val bytes = ByteArray(bufferedSize)
+            var count = `is`.read(bytes, 0, bufferedSize)
             while (count > 0) {
-                bos.write(bytes, 0, count)
-                count = bis.read(bytes)
+                os.write(bytes, 0, count)
+                count = `is`.read(bytes, 0, bufferedSize)
             }
         }
     }
-    file
+}
+
+
+enum class MediaType { Audio, Video, Images, Files, Downloads }
+
+fun saveDataToMediaStore(
+    context: Context,
+    inputStream: InputStream,
+    mimeType: String,
+    name: String,
+    mediaType: MediaType,
+    relativePath: String
+): Completable {
+    val contentValues = ContentValues().apply {
+        val (displayName, relativePathColName, contentUri) = when (mediaType) {
+            MediaType.Audio -> {
+                Triple (
+                    MediaStore.Audio.AudioColumns.DISPLAY_NAME,
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                            MediaStore.Audio.AudioColumns.RELATIVE_PATH
+                        else
+                            "",
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                )
+            }
+            MediaType.Images -> {
+                Triple(
+                    MediaStore.Images.ImageColumns.DISPLAY_NAME,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                        MediaStore.Images.ImageColumns.RELATIVE_PATH
+                    else
+                        "",
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+            }
+            MediaType.Downloads -> {
+                Triple(
+                    MediaStore.DownloadColumns.DISPLAY_NAME,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                        MediaStore.DownloadColumns.RELATIVE_PATH
+                    else
+                        "",
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI
+                    else
+                        Uri.parse("content://downloads/")
+                )
+            }
+            MediaType.Files -> {
+                Triple(
+                    MediaStore.Files.FileColumns.DISPLAY_NAME,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                        MediaStore.Files.FileColumns.RELATIVE_PATH
+                    else
+                        "",
+                    MediaStore.Files.getContentUri(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.Files.FileColumns.VOLUME_NAME else "")
+                )
+
+            }
+            MediaType.Video -> {
+                Triple(
+                    MediaStore.Video.VideoColumns.DISPLAY_NAME,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                        MediaStore.Video.VideoColumns.RELATIVE_PATH
+                    else
+                        "",
+                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                )
+            }
+        }
+        put(displayName, name)
+
+        put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            put(relativePathColName, relativePath)
+        }
+
+
+    }
+
+    val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues) ?: error("Can't insert to table.")
+    val outputStream = context.contentResolver.openOutputStream(uri) ?: error("Can't create outputStream.")
+    return writeDataToOutputStream(inputStream, outputStream)
 }
