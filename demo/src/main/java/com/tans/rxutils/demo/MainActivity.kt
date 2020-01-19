@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity() {
             .subscribe()
 
         capture_share_bt.clicks()
-            .flatMapSingle {
+            .flatMapMaybe {
                 val file = createImageFile()
                 captureFromCamera(this, file, fileProviderAuth)
                     .flatMapMaybe {(code, _) ->
@@ -89,7 +89,7 @@ class MainActivity : AppCompatActivity() {
                             Maybe.empty<File>()
                         }
                     }
-                    .flatMapSingle { f ->
+                    .flatMap { f ->
                         shareImageAndText(
                             context = this,
                             text = "Hello, World!!",
@@ -98,20 +98,22 @@ class MainActivity : AppCompatActivity() {
                             .doOnSuccess {
                                 println(it)
                             }
+                            .toMaybe()
                     }
             }
             .subscribe()
 
         choose_image_save_bt.clicks()
-            .flatMapSingle {
+            .flatMapMaybe {
                 chooseImageFromGallery(this)
-                    .flatMapSingle {uri ->
+                    .flatMap { uri ->
                         val file = createImageFile()
                         saveUriToLocal(uri, file, this)
                             .switchThread()
                             .doOnSuccess {
                                 gallery_iv.setImageDrawable(BitmapDrawable.createFromPath(it.path))
                             }
+                            .toMaybe()
                     }
             }
             .subscribe()
