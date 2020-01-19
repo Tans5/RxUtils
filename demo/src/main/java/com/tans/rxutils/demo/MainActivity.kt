@@ -1,5 +1,6 @@
 package com.tans.rxutils.demo
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.graphics.drawable.BitmapDrawable
@@ -9,6 +10,8 @@ import android.os.Environment
 import android.widget.Toast
 import com.jakewharton.rxbinding3.view.clicks
 import com.tans.rxutils.*
+import com.tbruyelle.rxpermissions2.RxPermissions
+import io.reactivex.Completable
 import io.reactivex.Maybe
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -116,6 +119,38 @@ class MainActivity : AppCompatActivity() {
                             }
                             .toMaybe()
                     }
+            }
+            .subscribe()
+
+        capture_and_save_media_bt.clicks()
+            .flatMapSingle {
+                RxPermissions(this)
+                    .request(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    .firstOrError()
+            }
+            .flatMapCompletable {
+                if (it) {
+                    val file = createImageFile()
+                    captureFromCamera(this, file, fileProviderAuth)
+                        .flatMapCompletable { (resultCode, _) ->
+                            if (resultCode == Activity.RESULT_OK) {
+                                saveDataToMediaStore(
+                                    this,
+                                    FileInputStream(file),
+                                    "image/jpg",
+                                    "Test",
+                                    mediaType = MediaType.Images,
+                                    relativePath = Environment.DIRECTORY_PICTURES
+                                )
+                                    .switchThread()
+                            } else {
+                                file.delete()
+                                Completable.complete()
+                            }
+                        }
+                } else {
+                    Completable.complete()
+                }
             }
             .subscribe()
     }

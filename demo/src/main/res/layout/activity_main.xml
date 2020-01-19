@@ -51,9 +51,10 @@
             android:text="Choose Image Save"/>
 
         <Button
+            android:id="@+id/capture_and_save_media_bt"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text=""/>
+            android:text="Capture Image And Save Media"/>
 
         <ImageView
             android:id="@+id/gallery_iv"
