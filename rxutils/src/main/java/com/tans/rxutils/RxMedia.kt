@@ -11,6 +11,7 @@ import androidx.fragment.app.FragmentActivity
 import io.reactivex.Completable
 import io.reactivex.Single
 import java.io.*
+import java.lang.RuntimeException
 
 /**
  *
@@ -85,62 +86,64 @@ fun saveDataToMediaStore(
     mediaType: MediaType,
     relativePath: String
 ): Completable {
-    val contentValues = ContentValues().apply {
-        val (displayName, relativePathColName, contentUri) = when (mediaType) {
-            MediaType.Audio -> {
-                Triple (
-                    MediaStore.Audio.AudioColumns.DISPLAY_NAME,
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-                            MediaStore.Audio.AudioColumns.RELATIVE_PATH
-                        else
-                            "",
-                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-                )
-            }
-            MediaType.Images -> {
-                Triple(
-                    MediaStore.Images.ImageColumns.DISPLAY_NAME,
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-                        MediaStore.Images.ImageColumns.RELATIVE_PATH
-                    else
-                        "",
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-            }
-            MediaType.Downloads -> {
-                Triple(
-                    MediaStore.DownloadColumns.DISPLAY_NAME,
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-                        MediaStore.DownloadColumns.RELATIVE_PATH
-                    else
-                        "",
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-                        MediaStore.Downloads.EXTERNAL_CONTENT_URI
-                    else
-                        Uri.parse("content://downloads/")
-                )
-            }
-            MediaType.Files -> {
-                Triple(
-                    MediaStore.Files.FileColumns.DISPLAY_NAME,
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-                        MediaStore.Files.FileColumns.RELATIVE_PATH
-                    else
-                        "",
-                    MediaStore.Files.getContentUri(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.Files.FileColumns.VOLUME_NAME else "")
-                )
 
-            }
-            MediaType.Video -> {
-                Triple(
-                    MediaStore.Video.VideoColumns.DISPLAY_NAME,
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
-                        MediaStore.Video.VideoColumns.RELATIVE_PATH
-                    else
-                        "",
-                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-                )
-            }
+    val (displayName, relativePathColName, contentUri) = when (mediaType) {
+        MediaType.Audio -> {
+            Triple (
+                MediaStore.Audio.AudioColumns.DISPLAY_NAME,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    MediaStore.Audio.AudioColumns.RELATIVE_PATH
+                else
+                    "",
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            )
         }
+        MediaType.Images -> {
+            Triple(
+                MediaStore.Images.ImageColumns.DISPLAY_NAME,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    MediaStore.Images.ImageColumns.RELATIVE_PATH
+                else
+                    "",
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+        }
+        MediaType.Downloads -> {
+            Triple(
+                MediaStore.DownloadColumns.DISPLAY_NAME,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    MediaStore.DownloadColumns.RELATIVE_PATH
+                else
+                    "",
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    MediaStore.Downloads.EXTERNAL_CONTENT_URI
+                else
+                    Uri.parse("content://downloads/")
+            )
+        }
+        MediaType.Files -> {
+            Triple(
+                MediaStore.Files.FileColumns.DISPLAY_NAME,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    MediaStore.Files.FileColumns.RELATIVE_PATH
+                else
+                    "",
+                MediaStore.Files.getContentUri(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.Files.FileColumns.VOLUME_NAME else "")
+            )
+
+        }
+        MediaType.Video -> {
+            Triple(
+                MediaStore.Video.VideoColumns.DISPLAY_NAME,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    MediaStore.Video.VideoColumns.RELATIVE_PATH
+                else
+                    "",
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            )
+        }
+    }
+
+    val contentValues = ContentValues().apply {
         put(displayName, name)
 
         put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
@@ -152,7 +155,15 @@ fun saveDataToMediaStore(
 
     }
 
-    val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues) ?: error("Can't insert to table.")
-    val outputStream = context.contentResolver.openOutputStream(uri) ?: error("Can't create outputStream.")
-    return writeDataToOutputStream(inputStream, outputStream)
+    val uri = context.contentResolver.insert(contentUri, contentValues)
+    return if (uri == null) {
+        Completable.error(RuntimeException("Can't create uri"))
+    } else {
+        val outputStream = context.contentResolver.openOutputStream(uri)
+        if (outputStream == null) {
+            Completable.error(RuntimeException("Can't create output stream."))
+        } else {
+            writeDataToOutputStream(inputStream, outputStream)
+        }
+    }
 }
