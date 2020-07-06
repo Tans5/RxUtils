@@ -48,6 +48,14 @@ fun shareImageAndText(
     return startActivityForResult(context, i)
 }
 
+fun createNewFile(context: FragmentActivity, fileName: String, mimeType: String): Single<Pair<Int, Intent?>> {
+    val intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
+    intent.addCategory(Intent.CATEGORY_OPENABLE)
+    intent.type = mimeType
+    intent.putExtra(Intent.EXTRA_TITLE, fileName)
+    return startActivityForResult(context, intent)
+}
+
 fun saveUriToLocal(uri: Uri, file: File, context: Context): Single<File> {
     val inputStream = context.contentResolver.openInputStream(uri)
     return writeDataToFile(file, inputStream ?: error("Can't create InputStream"))
@@ -87,6 +95,26 @@ fun saveDataToMediaStore(
     relativePath: String
 ): Completable {
 
+    val uri = insertMediaItem(context, mimeType, name, mediaType, relativePath)
+
+    return if (uri == null) {
+        Completable.error(RuntimeException("Can't create uri"))
+    } else {
+        val outputStream = context.contentResolver.openOutputStream(uri)
+        if (outputStream == null) {
+            Completable.error(RuntimeException("Can't create output stream."))
+        } else {
+            writeDataToOutputStream(inputStream, outputStream)
+        }
+    }
+}
+
+
+fun insertMediaItem(context: Context,
+                    mimeType: String,
+                    name: String,
+                    mediaType: MediaType,
+                    relativePath: String): Uri? {
     val (displayName, relativePathColName, contentUri) = when (mediaType) {
         MediaType.Audio -> {
             Triple (
@@ -117,6 +145,7 @@ fun saveDataToMediaStore(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
                     MediaStore.Downloads.EXTERNAL_CONTENT_URI
                 else
+                    // FIXME: this way will crash.
                     Uri.parse("content://downloads/")
             )
         }
@@ -143,6 +172,8 @@ fun saveDataToMediaStore(
         }
     }
 
+
+
     val contentValues = ContentValues().apply {
         put(displayName, name)
 
@@ -151,19 +182,8 @@ fun saveDataToMediaStore(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             put(relativePathColName, relativePath)
         }
-
-
     }
 
-    val uri = context.contentResolver.insert(contentUri, contentValues)
-    return if (uri == null) {
-        Completable.error(RuntimeException("Can't create uri"))
-    } else {
-        val outputStream = context.contentResolver.openOutputStream(uri)
-        if (outputStream == null) {
-            Completable.error(RuntimeException("Can't create output stream."))
-        } else {
-            writeDataToOutputStream(inputStream, outputStream)
-        }
-    }
+    return context.contentResolver.insert(contentUri, contentValues)
 }
+

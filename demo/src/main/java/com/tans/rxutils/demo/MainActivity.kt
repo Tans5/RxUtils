@@ -138,7 +138,7 @@ class MainActivity : AppCompatActivity() {
                                     this,
                                     FileInputStream(file),
                                     "image/jpg",
-                                    "Test",
+                                    "Test.jpg",
                                     mediaType = MediaType.Images,
                                     relativePath = Environment.DIRECTORY_PICTURES
                                 )
