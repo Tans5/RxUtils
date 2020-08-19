@@ -139,7 +139,7 @@ class MainActivity : AppCompatActivity() {
                                     FileInputStream(file),
                                     "image/jpg",
                                     "Test.jpg",
-                                    mediaType = MediaType.Images,
+                                    saveMediaType = SaveMediaType.Images,
                                     relativePath = Environment.DIRECTORY_PICTURES
                                 )
                                     .switchThread()
@@ -151,6 +151,21 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     Completable.complete()
                 }
+            }
+            .subscribe()
+
+        get_media_bt.clicks()
+            .flatMapSingle {
+                RxPermissions(this)
+                    .request(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    .firstOrError()
+                    .flatMap {
+                        getMedia(context = this, queryMediaType = QueryMediaType.Video)
+                            .switchThread()
+                    }
+            }
+            .doOnNext {
+                Toast.makeText(this, "Get Media Size: ${it.size}", Toast.LENGTH_LONG).show()
             }
             .subscribe()
     }

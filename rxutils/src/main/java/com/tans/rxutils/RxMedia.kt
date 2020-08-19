@@ -1,5 +1,6 @@
 package com.tans.rxutils
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -84,18 +85,25 @@ fun writeDataToOutputStream(
 }
 
 
-enum class MediaType { Audio, Video, Images, Files, Downloads }
+enum class SaveMediaType { Audio, Video, Images, Files, Downloads }
 
 fun saveDataToMediaStore(
     context: Context,
     inputStream: InputStream,
     mimeType: String,
     name: String,
-    mediaType: MediaType,
+    saveMediaType: SaveMediaType,
     relativePath: String
 ): Completable {
 
-    val uri = insertMediaItem(context, mimeType, name, mediaType, relativePath)
+    val uri = insertMediaItem(
+        context = context,
+        mimeType = mimeType,
+        name = name,
+        saveMediaType = saveMediaType,
+        relativePath = relativePath,
+        isPending = false
+    )
 
     return if (uri == null) {
         Completable.error(RuntimeException("Can't create uri"))
@@ -104,7 +112,14 @@ fun saveDataToMediaStore(
         if (outputStream == null) {
             Completable.error(RuntimeException("Can't create output stream."))
         } else {
-            writeDataToOutputStream(inputStream, outputStream)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                writeDataToOutputStream(inputStream, outputStream)
+                    .andThen(Completable.fromAction {
+                        context.contentResolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+                    })
+            } else {
+                writeDataToOutputStream(inputStream, outputStream)
+            }
         }
     }
 }
@@ -113,10 +128,12 @@ fun saveDataToMediaStore(
 fun insertMediaItem(context: Context,
                     mimeType: String,
                     name: String,
-                    mediaType: MediaType,
-                    relativePath: String): Uri? {
-    val (displayName, relativePathColName, contentUri) = when (mediaType) {
-        MediaType.Audio -> {
+                    saveMediaType: SaveMediaType,
+                    relativePath: String,
+                    isPending: Boolean = true): Uri? {
+
+    val (displayName, relativePathColName, contentUri) = when (saveMediaType) {
+        SaveMediaType.Audio -> {
             Triple (
                 MediaStore.Audio.AudioColumns.DISPLAY_NAME,
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
@@ -126,7 +143,7 @@ fun insertMediaItem(context: Context,
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
             )
         }
-        MediaType.Images -> {
+        SaveMediaType.Images -> {
             Triple(
                 MediaStore.Images.ImageColumns.DISPLAY_NAME,
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
@@ -135,7 +152,7 @@ fun insertMediaItem(context: Context,
                     "",
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         }
-        MediaType.Downloads -> {
+        SaveMediaType.Downloads -> {
             Triple(
                 MediaStore.DownloadColumns.DISPLAY_NAME,
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
@@ -145,22 +162,21 @@ fun insertMediaItem(context: Context,
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
                     MediaStore.Downloads.EXTERNAL_CONTENT_URI
                 else
-                    // FIXME: this way will crash.
-                    Uri.parse("content://downloads/")
+                    error("Below Android Q, Can't insert download media.")
             )
         }
-        MediaType.Files -> {
+        SaveMediaType.Files -> {
             Triple(
                 MediaStore.Files.FileColumns.DISPLAY_NAME,
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
                     MediaStore.Files.FileColumns.RELATIVE_PATH
                 else
                     "",
-                MediaStore.Files.getContentUri(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.Files.FileColumns.VOLUME_NAME else "")
+                MediaStore.Files.getContentUri(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.Files.FileColumns.VOLUME_NAME else error("Below Android Q, Can't file download media."))
             )
 
         }
-        MediaType.Video -> {
+        SaveMediaType.Video -> {
             Triple(
                 MediaStore.Video.VideoColumns.DISPLAY_NAME,
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
@@ -173,7 +189,6 @@ fun insertMediaItem(context: Context,
     }
 
 
-
     val contentValues = ContentValues().apply {
         put(displayName, name)
 
@@ -181,9 +196,190 @@ fun insertMediaItem(context: Context,
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             put(relativePathColName, relativePath)
+            put(MediaStore.MediaColumns.IS_PENDING, if (isPending) 0 else 1)
         }
     }
 
     return context.contentResolver.insert(contentUri, contentValues)
+}
+
+sealed class QueryMediaType {
+    object Image : QueryMediaType()
+    object Audio : QueryMediaType()
+    object Video : QueryMediaType()
+    class Others(val uri: Uri) : QueryMediaType()
+}
+
+sealed class QueryMediaItem(
+    val id: Long,
+    val mimeType: String,
+    val size: Int,
+    val uri: Uri
+) {
+    class Image(
+        id: Long,
+        mimeType: String,
+        size: Int,
+        uri: Uri,
+        val width: Int,
+        val height: Int,
+        val displayName: String,
+        val dateModify: String
+    ) : QueryMediaItem(id, mimeType, size, uri)
+
+    class Audio(
+        id: Long,
+        mimeType: String,
+        size: Int,
+        uri: Uri,
+        val displayName: String,
+        val album: String,
+        val albumId: Long,
+        val artist: String,
+        val track: Int
+    ) : QueryMediaItem(id, mimeType, size, uri)
+
+    class Video(
+        id: Long,
+        mimeType: String,
+        size: Int,
+        uri: Uri,
+        val width: Int,
+        val height: Int,
+        val displayName: String,
+        val artist: String,
+        val dateModify: String,
+        val album: String
+    ) : QueryMediaItem(id, mimeType, size, uri)
+
+    class Others(
+        id: Long,
+        mimeType: String,
+        size: Int,
+        uri: Uri
+    ) : QueryMediaItem(id, mimeType, size, uri)
+}
+
+fun getMedia(
+    context: Context,
+    queryMediaType: QueryMediaType,
+    selection: String? = null,
+    selectionArgs: Array<String>? = null,
+    sortOrder: String? = null
+): Single<List<QueryMediaItem>> {
+
+    val (uri, projection) = when (queryMediaType) {
+        QueryMediaType.Image -> {
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI to arrayOf(
+                MediaStore.MediaColumns._ID,
+                MediaStore.Images.Media.WIDTH,
+                MediaStore.Images.Media.HEIGHT,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.MIME_TYPE,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.DATE_MODIFIED
+            )
+        }
+        QueryMediaType.Audio -> {
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI to arrayOf(
+                MediaStore.MediaColumns._ID,
+                MediaStore.Audio.Media.MIME_TYPE,
+                MediaStore.Audio.Media.DISPLAY_NAME,
+                MediaStore.Audio.Media.ALBUM,
+                MediaStore.Audio.Media.ALBUM_ID,
+                MediaStore.Audio.Media.ARTIST,
+                MediaStore.Audio.Media.SIZE,
+                MediaStore.Audio.Media.TRACK
+            )
+        }
+        QueryMediaType.Video -> {
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI to arrayOf(
+                MediaStore.MediaColumns._ID,
+                MediaStore.Video.Media.WIDTH,
+                MediaStore.Video.Media.HEIGHT,
+                MediaStore.Video.Media.DISPLAY_NAME,
+                MediaStore.Video.Media.SIZE,
+                MediaStore.Video.Media.MIME_TYPE,
+                MediaStore.Video.Media.DATE_MODIFIED,
+                MediaStore.Video.Media.ALBUM,
+                MediaStore.Video.Media.ARTIST
+            )
+        }
+        is QueryMediaType.Others -> {
+            queryMediaType.uri to arrayOf(
+                MediaStore.MediaColumns._ID,
+                MediaStore.MediaColumns.MIME_TYPE,
+                MediaStore.MediaColumns.SIZE
+            )
+        }
+    }
+
+    val cursor = context.contentResolver.query(
+        uri,
+        projection,
+        selection,
+        selectionArgs,
+        sortOrder
+    )
+    return cursor?.use {
+        cursor.moveToLast()
+        val result = List(cursor.position + 1) { index ->
+            cursor.moveToPosition(index)
+            val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+            when (queryMediaType) {
+                QueryMediaType.Image -> {
+                    QueryMediaItem.Image(
+                        id = id,
+                        mimeType = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)).orEmpty(),
+                        size = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
+                        uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id),
+                        displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)).orEmpty(),
+                        width = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)),
+                        height = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)),
+                        dateModify = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)).orEmpty()
+                    )
+                }
+
+                QueryMediaType.Audio -> {
+                    QueryMediaItem.Audio(
+                        id = id,
+                        mimeType = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)).orEmpty(),
+                        size = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
+                        uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id),
+                        displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)).orEmpty(),
+                        album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)).orEmpty(),
+                        albumId = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)),
+                        artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)).orEmpty(),
+                        track = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK))
+                    )
+                }
+
+                QueryMediaType.Video -> {
+                    QueryMediaItem.Video(
+                        id = id,
+                        mimeType = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)).orEmpty(),
+                        size = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
+                        uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id),
+                        displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)).orEmpty(),
+                        album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.ALBUM)).orEmpty(),
+                        artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.ARTIST)).orEmpty(),
+                        width = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)),
+                        height = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)),
+                        dateModify = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)).orEmpty()
+                    )
+                }
+
+                is QueryMediaType.Others -> {
+                    QueryMediaItem.Others(
+                        id = id,
+                        mimeType = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)).orEmpty(),
+                        size = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
+                        uri = ContentUris.withAppendedId(queryMediaType.uri, id)
+                    )
+                }
+            }
+        }
+        Single.just(result)
+    } ?: Single.just(emptyList())
 }
 

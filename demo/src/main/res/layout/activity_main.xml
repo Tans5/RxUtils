@@ -56,6 +56,12 @@
             android:layout_height="wrap_content"
             android:text="Capture Image And Save Media"/>
 
+        <Button
+            android:id="@+id/get_media_bt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Get Media"/>
+
         <ImageView
             android:id="@+id/gallery_iv"
             android:layout_width="wrap_content"
