@@ -50,6 +50,9 @@ dependencies {
     implementation deps.view.design
     implementation deps.view.constraintlayout
 
+    // Crop Image
+    implementation 'com.github.yalantis:ucrop:2.2.6'
+
     implementation deps.timber.runtime
 
     testImplementation 'junit:junit:4.12'

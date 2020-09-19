@@ -3,6 +3,7 @@ package com.tans.rxutils
 import android.app.Activity
 import android.content.ContentValues
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -11,6 +12,7 @@ import android.util.Size
 import android.util.SizeF
 import androidx.core.content.FileProvider
 import androidx.fragment.app.FragmentActivity
+import com.yalantis.ucrop.UCrop
 import io.reactivex.Maybe
 import io.reactivex.Single
 import java.io.File
@@ -59,50 +61,61 @@ fun captureFromCamera(
 fun cropImage(context: FragmentActivity,
               sourceUri: Uri,
               cropRatio: SizeF? = null,
-              cropMaxSize: Size? = null,
-              cropName: String = "${System.currentTimeMillis()}.jpg"
-): Maybe<Uri> {
-
-    val desUri = insertMediaItem(
-        context = context,
-        mimeType = "image/jpg",
-        name = cropName,
-        saveMediaType = SaveMediaType.Images,
-        relativePath = Environment.DIRECTORY_PICTURES,
-        isPending = false)
-
-    return if (desUri != null) {
-        cropImage(
+              cropMaxSize: Size? = null
+): Maybe<File> {
+    val parentFile = context.cacheDir
+    val file = File(parentFile, "crop_image_catch_${System.currentTimeMillis()}.jpg")
+    return cropImage(
             context = context,
             sourceUri = sourceUri,
-            destinationUri = desUri,
+            destinationFile = file,
             cropRatio = cropRatio,
             cropMaxSize = cropMaxSize
         )
             .toSingle(Uri.EMPTY)
             .flatMapMaybe { uri ->
                 if (uri == Uri.EMPTY) {
-                    context.contentResolver.delete(desUri, null, null)
+                    if (file.exists()) { file.delete() }
                     Maybe.empty()
                 } else {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        context.contentResolver.update(desUri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+                    if (uri.scheme == "file") {
+                        Maybe.just(File(uri.path ?: ""))
+                    } else {
+                        Maybe.just(file)
                     }
-                    Maybe.just(uri)
                 }
             }
-    } else {
-        Maybe.error(RuntimeException("Can't create crop target uri."))
-    }
 }
 
+/**
+ * Crop image file is JPEG format.
+ */
 fun cropImage(
     context: FragmentActivity,
     sourceUri: Uri,
-    destinationUri: Uri,
+    destinationFile: File,
     cropRatio: SizeF? = null,
     cropMaxSize: Size? = null
 ): Maybe<Uri> {
+    val intent = UCrop.of(sourceUri, Uri.fromFile(destinationFile))
+        .withOptions(UCrop.Options().apply { setCompressionFormat(Bitmap.CompressFormat.JPEG) })
+        .apply {
+            if (cropRatio != null) {
+                withAspectRatio(cropRatio.width, cropRatio.height)
+            }
+            if (cropMaxSize != null) {
+                withMaxResultSize(cropMaxSize.width, cropMaxSize.height)
+            }
+        }
+        .getIntent(context)
 
-    return Maybe.empty()
+    return startActivityForResult(context, intent)
+        .flatMapMaybe { (resultCode, resultIntent) ->
+            val uri = if (resultIntent == null) null else UCrop.getOutput(resultIntent)
+            if (resultCode == Activity.RESULT_OK && uri != null) {
+                Maybe.just(uri)
+            } else {
+                Maybe.empty()
+            }
+        }
 }

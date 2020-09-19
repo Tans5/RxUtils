@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.graphics.drawable.BitmapDrawable
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Environment
@@ -61,8 +62,11 @@ class MainActivity : AppCompatActivity() {
         choose_image_bt.clicks()
             .flatMapMaybe {
                 chooseImageFromGallery(this)
+                    .flatMap {
+                        cropImage(this, it)
+                    }
                     .doOnSuccess {
-                        gallery_iv.setImageURI(it)
+                        gallery_iv.setImageURI(Uri.fromFile(it))
                     }
             }
             .subscribe()
@@ -116,6 +120,7 @@ class MainActivity : AppCompatActivity() {
                             .switchThread()
                             .doOnSuccess {
                                 gallery_iv.setImageDrawable(BitmapDrawable.createFromPath(it.path))
+                                if (it.exists()) it.delete()
                             }
                             .toMaybe()
                     }
