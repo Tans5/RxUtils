@@ -165,7 +165,7 @@ class MainActivity : AppCompatActivity() {
                     .request(Manifest.permission.READ_EXTERNAL_STORAGE)
                     .firstOrError()
                     .flatMap {
-                        getMedia(context = this, queryMediaType = QueryMediaType.Video)
+                        getMedia(context = this, queryMediaType = QueryMediaType.Image)
                             .switchThread()
                     }
             }
