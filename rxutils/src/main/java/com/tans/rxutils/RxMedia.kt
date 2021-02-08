@@ -213,13 +213,13 @@ sealed class QueryMediaType {
 sealed class QueryMediaItem(
     val id: Long,
     val mimeType: String,
-    val size: Int,
+    val size: Long,
     val uri: Uri
 ) {
     class Image(
         id: Long,
         mimeType: String,
-        size: Int,
+        size: Long,
         uri: Uri,
         val width: Int,
         val height: Int,
@@ -230,7 +230,7 @@ sealed class QueryMediaItem(
     class Audio(
         id: Long,
         mimeType: String,
-        size: Int,
+        size: Long,
         uri: Uri,
         val displayName: String,
         val album: String,
@@ -242,7 +242,7 @@ sealed class QueryMediaItem(
     class Video(
         id: Long,
         mimeType: String,
-        size: Int,
+        size: Long,
         uri: Uri,
         val width: Int,
         val height: Int,
@@ -255,7 +255,7 @@ sealed class QueryMediaItem(
     class Others(
         id: Long,
         mimeType: String,
-        size: Int,
+        size: Long,
         uri: Uri
     ) : QueryMediaItem(id, mimeType, size, uri)
 }
@@ -331,7 +331,7 @@ fun getMedia(
                     QueryMediaItem.Image(
                         id = id,
                         mimeType = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)).orEmpty(),
-                        size = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
+                        size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
                         uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id),
                         displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)).orEmpty(),
                         width = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)),
@@ -344,7 +344,7 @@ fun getMedia(
                     QueryMediaItem.Audio(
                         id = id,
                         mimeType = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)).orEmpty(),
-                        size = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
+                        size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
                         uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id),
                         displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)).orEmpty(),
                         album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)).orEmpty(),
@@ -358,7 +358,7 @@ fun getMedia(
                     QueryMediaItem.Video(
                         id = id,
                         mimeType = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)).orEmpty(),
-                        size = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
+                        size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
                         uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id),
                         displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)).orEmpty(),
                         album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.ALBUM)).orEmpty(),
@@ -373,7 +373,7 @@ fun getMedia(
                     QueryMediaItem.Others(
                         id = id,
                         mimeType = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)).orEmpty(),
-                        size = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
+                        size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
                         uri = ContentUris.withAppendedId(queryMediaType.uri, id)
                     )
                 }
