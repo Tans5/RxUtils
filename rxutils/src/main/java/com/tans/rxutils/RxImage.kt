@@ -1,22 +1,18 @@
 package com.tans.rxutils
 
 import android.app.Activity
-import android.content.ContentValues
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
 import android.provider.MediaStore
 import android.util.Size
 import android.util.SizeF
 import androidx.core.content.FileProvider
 import androidx.fragment.app.FragmentActivity
 import com.yalantis.ucrop.UCrop
-import io.reactivex.Maybe
-import io.reactivex.Single
+import io.reactivex.rxjava3.core.Maybe
+import io.reactivex.rxjava3.core.Single
 import java.io.File
-import java.lang.RuntimeException
 
 /**
  *
@@ -72,8 +68,7 @@ fun cropImage(context: FragmentActivity,
             cropRatio = cropRatio,
             cropMaxSize = cropMaxSize
         )
-            .toSingle(Uri.EMPTY)
-            .flatMapMaybe { uri ->
+            .flatMap { uri ->
                 if (uri == Uri.EMPTY) {
                     if (file.exists()) { file.delete() }
                     Maybe.empty()
