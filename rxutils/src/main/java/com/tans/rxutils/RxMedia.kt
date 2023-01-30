@@ -236,7 +236,8 @@ sealed class QueryMediaItem(
         val album: String,
         val albumId: Long,
         val artist: String,
-        val track: Int
+        val track: Int,
+        val duration: Long
     ) : QueryMediaItem(id, mimeType, size, uri)
 
     class Video(
@@ -249,7 +250,8 @@ sealed class QueryMediaItem(
         val displayName: String,
         val artist: String,
         val dateModify: String,
-        val album: String
+        val album: String,
+        val duration: Long
     ) : QueryMediaItem(id, mimeType, size, uri)
 
     class Others(
@@ -350,7 +352,8 @@ fun getMedia(
                         album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)).orEmpty(),
                         albumId = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)),
                         artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)).orEmpty(),
-                        track = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK))
+                        track = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)),
+                        duration = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION))
                     )
                 }
 
@@ -365,7 +368,8 @@ fun getMedia(
                         artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.ARTIST)).orEmpty(),
                         width = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)),
                         height = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)),
-                        dateModify = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)).orEmpty()
+                        dateModify = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)).orEmpty(),
+                        duration = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION))
                     )
                 }
 
