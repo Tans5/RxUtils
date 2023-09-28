@@ -214,7 +214,9 @@ sealed class QueryMediaItem(
     val id: Long,
     val mimeType: String,
     val size: Long,
-    val uri: Uri
+    val uri: Uri,
+    val displayName: String,
+    val path: String
 ) {
     class Image(
         id: Long,
@@ -223,22 +225,24 @@ sealed class QueryMediaItem(
         uri: Uri,
         val width: Int,
         val height: Int,
-        val displayName: String,
-        val dateModify: String
-    ) : QueryMediaItem(id, mimeType, size, uri)
+        displayName: String,
+        val dateModify: String,
+        path: String
+    ) : QueryMediaItem(id, mimeType, size, uri, displayName, path)
 
     class Audio(
         id: Long,
         mimeType: String,
         size: Long,
         uri: Uri,
-        val displayName: String,
+        displayName: String,
         val album: String,
         val albumId: Long,
         val artist: String,
         val track: Int,
-        val duration: Long
-    ) : QueryMediaItem(id, mimeType, size, uri)
+        val duration: Long,
+        path: String
+    ) : QueryMediaItem(id, mimeType, size, uri, displayName, path)
 
     class Video(
         id: Long,
@@ -247,19 +251,22 @@ sealed class QueryMediaItem(
         uri: Uri,
         val width: Int,
         val height: Int,
-        val displayName: String,
+        displayName: String,
         val artist: String,
         val dateModify: String,
         val album: String,
-        val duration: Long
-    ) : QueryMediaItem(id, mimeType, size, uri)
+        val duration: Long,
+        path: String
+    ) : QueryMediaItem(id, mimeType, size, uri, displayName, path)
 
     class Others(
         id: Long,
         mimeType: String,
         size: Long,
-        uri: Uri
-    ) : QueryMediaItem(id, mimeType, size, uri)
+        uri: Uri,
+        displayName: String,
+        path: String
+    ) : QueryMediaItem(id, mimeType, size, uri, displayName, path)
 }
 
 fun getMedia(
@@ -279,7 +286,8 @@ fun getMedia(
                 MediaStore.Images.Media.DISPLAY_NAME,
                 MediaStore.Images.Media.MIME_TYPE,
                 MediaStore.Images.Media.SIZE,
-                MediaStore.Images.Media.DATE_MODIFIED
+                MediaStore.Images.Media.DATE_MODIFIED,
+                MediaStore.Images.Media.RELATIVE_PATH
             )
         }
         QueryMediaType.Audio -> {
@@ -291,7 +299,8 @@ fun getMedia(
                 MediaStore.Audio.Media.ALBUM_ID,
                 MediaStore.Audio.Media.ARTIST,
                 MediaStore.Audio.Media.SIZE,
-                MediaStore.Audio.Media.TRACK
+                MediaStore.Audio.Media.TRACK,
+                MediaStore.Audio.Media.RELATIVE_PATH
             )
         }
         QueryMediaType.Video -> {
@@ -304,14 +313,17 @@ fun getMedia(
                 MediaStore.Video.Media.MIME_TYPE,
                 MediaStore.Video.Media.DATE_MODIFIED,
                 MediaStore.Video.Media.ALBUM,
-                MediaStore.Video.Media.ARTIST
+                MediaStore.Video.Media.ARTIST,
+                MediaStore.Video.Media.RELATIVE_PATH
             )
         }
         is QueryMediaType.Others -> {
             queryMediaType.uri to arrayOf(
                 MediaStore.MediaColumns._ID,
                 MediaStore.MediaColumns.MIME_TYPE,
-                MediaStore.MediaColumns.SIZE
+                MediaStore.MediaColumns.SIZE,
+                MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.MediaColumns.RELATIVE_PATH
             )
         }
     }
@@ -338,7 +350,8 @@ fun getMedia(
                         displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)).orEmpty(),
                         width = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)),
                         height = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)),
-                        dateModify = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)).orEmpty()
+                        dateModify = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)).orEmpty(),
+                        path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)).orEmpty()
                     )
                 }
 
@@ -353,7 +366,8 @@ fun getMedia(
                         albumId = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)),
                         artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)).orEmpty(),
                         track = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)),
-                        duration = 0L
+                        duration = 0L,
+                        path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.RELATIVE_PATH)).orEmpty()
                     )
                 }
 
@@ -369,7 +383,8 @@ fun getMedia(
                         width = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)),
                         height = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)),
                         dateModify = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)).orEmpty(),
-                        duration = 0L
+                        duration = 0L,
+                        path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.RELATIVE_PATH)).orEmpty()
                     )
                 }
 
@@ -378,7 +393,9 @@ fun getMedia(
                         id = id,
                         mimeType = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)).orEmpty(),
                         size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)),
-                        uri = ContentUris.withAppendedId(queryMediaType.uri, id)
+                        uri = ContentUris.withAppendedId(queryMediaType.uri, id),
+                        displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)).orEmpty(),
+                        path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)).orEmpty()
                     )
                 }
             }
