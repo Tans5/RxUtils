@@ -241,7 +241,8 @@ sealed class QueryMediaItem(
         val artist: String,
         val track: Int,
         val duration: Long,
-        path: String
+        path: String,
+        val dateModify: String,
     ) : QueryMediaItem(id, mimeType, size, uri, displayName, path)
 
     class Video(
@@ -300,6 +301,7 @@ fun getMedia(
                 MediaStore.Audio.Media.ARTIST,
                 MediaStore.Audio.Media.SIZE,
                 MediaStore.Audio.Media.TRACK,
+                MediaStore.Audio.Media.DATE_MODIFIED,
                 MediaStore.Audio.Media.RELATIVE_PATH
             )
         }
@@ -367,7 +369,8 @@ fun getMedia(
                         artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)).orEmpty(),
                         track = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)),
                         duration = 0L,
-                        path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.RELATIVE_PATH)).orEmpty()
+                        path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.RELATIVE_PATH)).orEmpty(),
+                        dateModify = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)).orEmpty()
                     )
                 }
 
